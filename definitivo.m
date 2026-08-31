@@ -1,0 +1,272 @@
+clc; clear all; close all;
+% =========================================================================
+% PROYECTO DE TITULACIÓN: COMPRESIÓN Y CIFRADO SIMULTÁNEO DE SEÑALES ECG
+% ALGORITMO PRINCIPAL: MUESTREO COMPRESIVO CON RECONSTRUCCIÓN OMP
+% =========================================================================
+
+% =========================================================================
+% FASE 1: ADQUISICIÓN Y ACONDICIONAMIENTO DE DATOS (Simulación de Hardware)
+% =========================================================================
+
+% readmatrix es una función robusta que lee el archivo del ESP32 ignorando texto o comas
+datos_completos = readmatrix('ascii_ecg_data.txt'); 
+
+% Detectamos si el ESP32 envió 2 columnas (Tiempo, Voltaje) o solo 1 (Voltaje)
+if size(datos_completos, 2) >= 2
+    voltaje = datos_completos(:, 2); % Nos quedamos solo con la columna del Voltaje
+else
+    voltaje = datos_completos(:, 1); % Si solo hay una columna, la tomamos directa
+end
+
+% Reemplazamos cualquier error de lectura (NaN) por ceros para no romper la matemática
+voltaje(isnan(voltaje)) = 0; 
+
+% REGLA MÉDICA VITAL: Restamos la media para centrar la señal en cero.
+% Esto elimina el "Offset" (ruido de corriente directa) del ADC del ESP32.
+voltaje = voltaje - mean(voltaje); 
+
+% Configuración de la estructura de bloques del Muestreo Compresivo
+N = 256;   % Tamaño de cada trama original (256 muestras de tiempo)
+NT = 128;  % Factor de compresión al 50% (Ahorro del 50% de datos para transmisión)
+
+% Validamos tener datos suficientes para la simulación completa (NT * N = 32,768 muestras)
+total_muestras = NT * N;
+if length(voltaje) < total_muestras
+    % Si el archivo de texto es muy corto, duplicamos el latido para evitar errores de índice
+    repeticiones = ceil(total_muestras / length(voltaje));
+    x1 = repmat(voltaje, repeticiones, 1);
+    x1 = x1(1:total_muestras);
+else
+    x1 = voltaje(1:total_muestras);
+end
+
+% Moldeamos el vector lineal en una matriz bidimensional de (NT renglones x N columnas)
+x2 = zeros(NT, N);
+for k=1:NT
+    for m1=1:N
+        x2(k,m1) = x1((k-1)*N + m1);
+    end
+end
+
+% Gráfica de control 1: Visualización en 3D de la matriz completa antes de procesar
+figure(1);
+mesh(x2);
+title('Matriz ECG Estructurada (Antes de Compresión y Cifrado)');
+xlabel('Muestras por Trama (N)'); ylabel('Número de Trama (NT)'); zlabel('Voltaje');
+
+% =========================================================================
+% FASE 2: COMPRESIÓN Y CIFRADO SIMULTÁNEO (Se ejecuta en el ESP32)
+% =========================================================================
+
+% Creamos la matriz de sensado aleatoria 'A' usando una semilla fija (llave de usuario)
+disp('Generando Matriz de Sensado Ortogonalizada...');
+rng(19540516); 
+A = randn(NT, N);
+A = orth(A')'; % Ortogonalizamos la matriz para garantizar la condición de Isometría Restringida (RIP)
+disp('Hecho.');
+
+xc = zeros(NT, NT);
+K_spars = 45; % Parámetro de Dispersión: Guardamos solo los 45 coeficientes más energéticos por latido
+
+for k=1:NT
+    xd2 = x2(k,:);
+    x3 = dct(xd2); % Pasamos el latido al dominio de la frecuencia mediante la DCT
+    
+    % Aplicamos una estrategia "Greedy": Ordenamos y conservamos los 45 picos más altos
+    [~, sortIndex] = sort(abs(x3), 'descend');
+    xd = zeros(N,1);
+    xd(sortIndex(1:K_spars)) = x3(sortIndex(1:K_spars)); % Forzamos la señal a ser matemáticamente dispersa
+    
+    % MUESTREO COMPRESIVO: Multiplicamos la matriz de sensado por el vector disperso
+    y = A * xd;
+    xc(k,:) = y'; % Almacenamos el resultado comprimido
+end
+
+% CRIPTOGRAFÍA: Mezclamos la matriz comprimida usando el algoritmo caótico de dos llaves
+k2 = 56; k3 = 26;
+xc2 = caot_mezcla(NT, k2, k3, xc); % Esta es la señal ilegible que viaja por Wi-Fi
+
+% =========================================================================
+% FASE 3: DESCOMPRESIÓN Y RECONSTRUCCIÓN CRÍTICA (Se ejecuta en el Servidor Web)
+% =========================================================================
+
+% Criptografía Inversa: Usamos las llaves simétricas para ordenar la información
+k21 = 56; k31 = 26;
+xca = caot_mezcla_dec(NT, k21, k31, xc2);
+
+% Reconstruimos la matriz espejo de decodificación 'A2'
+rng(19540516); 
+A2 = randn(NT, N);
+A2 = orth(A2')';
+
+xc1 = zeros(NT, N);
+disp('Iniciando Motor de Reconstrucción Voraz OMP (Orthogonal Matching Pursuit)...');
+
+% Bucle de Reconstrucción por Trama
+for k=1:NT
+    y1 = xca(k,:)';
+    
+    % --- IMPLEMENTACIÓN INTERNA DEL ALGORITMO OMP ---
+    residual = y1; % Inicializamos el residuo matemático con la señal recibida
+    indx = [];     % Vector para almacenar los índices de las columnas ganadoras
+    xp = zeros(N,1);
+    
+    for iter = 1:K_spars
+        % Paso 1: Correlación entre la matriz de sensado y el residuo actual
+        proj = abs(A2' * residual);
+        [~, pos] = max(proj); % Buscamos la columna con máxima coincidencia
+        indx = [indx, pos];   % Guardamos esa columna en nuestra base de datos
+        
+        % Paso 2: Proyección por el método de Mínimos Cuadrados
+        A_sub = A2(:, indx);
+        x_est = A_sub \ y1;   % Estimamos la amplitud de la frecuencia analizada
+        
+        % Paso 3: Actualizamos el residuo restando la contribución de la columna hallada
+        residual = y1 - A_sub * x_est;
+    end
+    xp(indx) = x_est; % Construimos el espectro disperso recuperado
+    % ------------------------------------------------
+    
+    % Transformada Inversa Discreta de Coseno: Regresamos la señal al dominio del tiempo
+    xrec = idct(xp);
+    xc1(k,:) = xrec';
+end
+disp('Señal Reconstruida con Éxito.');
+
+% Desenrrollamos las matrices de vuelta a vectores lineales para poder evaluarlas
+xo = zeros(1, total_muestras);
+xr = zeros(1, total_muestras);
+for k=1:NT
+    for m1=1:N
+        xo((k-1)*N+m1) = x2(k,m1);
+        xr((k-1)*N+m1) = xc1(k,m1);
+    end
+end
+
+% =========================================================================
+% FASE 4: VALIDACIÓN CLÍNICA Y MÉTRICAS DE RENDIMIENTO
+% =========================================================================
+NP = total_muestras; % Evaluamos el rendimiento sobre el universo total de la señal
+
+% 1. Coeficiente de Correlación de Pearson (Fidelidad morfológica lineal)
+xop = mean(xo); xrp = mean(xr);
+num = sum((xo - xop) .* (xr - xrp));
+den = sqrt(sum((xo - xop).^2) * sum((xr - xrp).^2));
+pearson = num / den;
+disp('-------------------------------------------');
+disp('MÉTRICAS DE DIAGNÓSTICO CLÍNICO:');
+disp(['Correlación de Pearson: ', num2str(pearson)]);
+
+% 2. Relación Señal a Ruido (SNR)
+pxo = sum(xo.^2);
+per = sum((xo - xr).^2);
+snr = 10 * log10(pxo/per);
+disp(['Calidad de Señal SNR (dB): ', num2str(snr)]);
+
+% 3. PRD (Percentage Root-mean-square Difference) -> MÉTRICA REINA EN ECG
+prd = sqrt(per/pxo) * 100;
+disp(['Error Clínico PRD (%): ', num2str(prd)]);
+disp('-------------------------------------------');
+
+% =========================================================================
+% FASE 5: GENERACIÓN DE GRÁFICAS PROFESIONALES PARA EXPOSICIÓN
+% =========================================================================
+
+% --- GRÁFICA 2: COMPARACIÓN VISUAL EN EL TIEMPO (LÍNEAS SÓLIDAS) ---
+figure(2);
+muestras_zoom = 25000; % Ajuste de zoom horizontal para ver 4 latidos perfectamente anchos
+plot(xo(1:muestras_zoom), 'b', 'LineWidth', 2.5); % Original azul GRUESA
+hold on;
+plot(xr(1:muestras_zoom), 'r', 'LineWidth', 1.2);  % Recuperada roja SÓLIDA DELGADA
+hold off;
+title(['Comparación en el Tiempo: Original vs OMP (PRD: ', num2str(prd, '%.2f'), ' %)']);
+xlabel('Muestras'); ylabel('Amplitud (V)');
+legend('Señal Original (Hardware)', 'Señal Recuperada (Servidor)');
+grid on;
+
+% --- GRÁFICA 3: DIAGRAMA DE DISPERSIÓN DE PEARSON ---
+figure(3);
+scatter(xo(1:muestras_zoom), xr(1:muestras_zoom), 15, 'b', '+');
+hold on;
+lim_min = min(min(xo(1:muestras_zoom)), min(xr(1:muestras_zoom))); 
+lim_max = max(max(xo(1:muestras_zoom)), max(xr(1:muestras_zoom)));
+plot([lim_min, lim_max], [lim_min, lim_max], 'k', 'LineWidth', 1.5); % Línea ideal de cero error
+hold off;
+title(['Gráfico de Dispersión (Error PRD: ', num2str(prd, '%.2f'), ' %)']);
+xlabel('Amplitud Original'); ylabel('Amplitud Recuperada');
+grid on;
+
+% --- GRÁFICA 4: ESPECTROGRAMAS LADO A LADO ---
+fs = 200; % Frecuencia de muestreo estimada del ESP32
+so = stft(xo, fs); sr = stft(xr, fs);
+mmso = 10*log10(abs(so)); mmsr = 10*log10(abs(sr));
+
+figure(4);                                   
+subplot(1,2,1); 
+surf(mmso, 'EdgeColor', 'none'); % 'none' elimina la plasta negra
+title('Espectrograma Señal Original'); zlabel('Potencia (dB)');
+colormap jet; % Le damos colores térmicos profesionales
+
+subplot(1,2,2); 
+surf(mmsr, 'EdgeColor', 'none'); 
+title('Espectrograma Señal Recuperada'); zlabel('Potencia (dB)');
+colormap jet;
+
+% --- GRÁFICA 5: ERROR ABSOLUTO DE ESPECTROGRAMAS ---
+figure(5);
+surf(abs(mmso - mmsr), 'EdgeColor', 'none'); 
+title('Diferencia Absoluta entre Espectrogramas (Error Residual)');
+zlabel('Magnitud del Error');
+colormap hot; % Usamos mapa de calor para resaltar el error
+% --- GRÁFICA 6: LA REPRESENTACIÓN MÉDICA RECOMENDADA (FFT EN LÍNEA SÓLIDA) ---
+L = length(xo);
+f = fs*(0:(L/2))/L; % Construcción del eje de frecuencias reales en Hertz
+
+% Transformada Rápida de Fourier de la Señal Original
+Y_orig = fft(xo); P2_orig = abs(Y_orig/L); P1_orig = P2_orig(1:floor(L/2)+1);
+P1_orig(2:end-1) = 2*P1_orig(2:end-1);
+
+% Transformada Rápida de Fourier de la Señal Recuperada
+Y_rec = fft(xr); P2_rec = abs(Y_rec/L); P1_rec = P2_rec(1:floor(L/2)+1);
+P1_rec(2:end-1) = 2*P1_rec(2:end-1);
+
+figure(6);
+plot(f, P1_orig, 'b', 'LineWidth', 2.5); % Espectro original grueso
+hold on;
+plot(f, P1_rec, 'r', 'LineWidth', 1.2);   % Espectro recuperado sólido delgado
+hold off;
+title('Espectro de Frecuencias (FFT) - Validación de Ondas');
+xlabel('Frecuencia (Hz)'); ylabel('Magnitud');
+legend('Espectro Original', 'Espectro Recuperado');
+xlim([0 45]); % Filtramos visualmente de 0 a 45Hz, que es donde vive la xr_cleaninformación clínica del ECG
+grid on;
+% =========================================================================
+% --- GRÁFICA 6: COHERENCIA ESPECTRAL ---
+% =========================================================================
+figure(7);
+
+% 1. Limpieza y Centrado (SIN FILTRO)
+xo_clean = xo - mean(xo);
+xr_clean = xr - mean(xr);
+
+% 2. Ventana adaptativa para evitar errores de tamaño de matriz
+tamano_ventana = min(1024, length(xo_clean)); 
+traslape = floor(tamano_ventana / 2);
+
+% 3. Cálculo de Coherencia
+[Cxy, F_coh] = mscohere(xo_clean, xr_clean, hamming(tamano_ventana), traslape, tamano_ventana, fs);
+
+% 4. Dibujar la Gráfica
+plot(F_coh, Cxy, 'LineWidth', 2, 'Color', [0.1 0.6 0.2]); 
+hold on;
+area(F_coh, Cxy, 'FaceColor', [0.1 0.6 0.2], 'FaceAlpha', 0.2, 'EdgeColor', 'none');
+
+title('Coherencia Espectral: Señal Original vs. Reconstruida');
+xlabel('Frecuencia (Hz)');
+ylabel('Magnitud de Coherencia (0 a 1)');
+grid on;
+
+% Enfoque visual en el rango de cardiología (0 a 45 Hz)
+axis([0 50 0 1.1]); 
+yline(0.9, '--r', 'Alta Coherencia (>0.9)', 'LabelHorizontalAlignment', 'left');
+hold off;

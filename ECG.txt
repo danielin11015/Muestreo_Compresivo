@@ -1,0 +1,98 @@
+Lo que debes QUITAR o MOVER al final (Anexos):
+
+Diapositivas 12 a 15 (¿Cómo funciona un ECG?, ¿Qué es un ECG?, Frecuencia de muestreo, Histograma): Tus asesores ya saben qué es un ECG. Esto consume tiempo valioso. Si te preguntan, lo sacas de los anexos.
+
+Diapositivas 17 a 24 (Bits en serie, RLE, Delta, Base64, JSON, etc.): Es demasiada teoría básica. Solo menciona que usarás compresión y transmisión eficiente.
+
+Diapositivas 9, 28 y 29 (Etapa de funcionalidad, configuración Wi-Fi, optimización): Son detalles de implementación. Puedes resumirlos oralmente cuando hables del hardware.
+
+El ORDEN ideal para 15 minutos:
+
+Portada (1 min): Actualiza el título a "Diseño de un sistema híbrido de compresión y cifrado de datos de ECG utilizando Muestreo Compresivo y Wavelets".
+
+Planteamiento del Problema y Justificación (2 min): (Fusión de las slides 2, 3 y 4). Ve directo al grano: la falta de monitoreo continuo seguro y el problema del ancho de banda/energía al transmitir datos médicos.
+
+Objetivo General y Específicos (2 min): (Fusión de slides 5 y 6). Menciona claramente las 4 fases (Wavelet, Huffman, Muestreo Compresivo/Cifrado, y Evaluación de Fidelidad).
+
+Línea del Tiempo / Estado del Arte (1 min): (Slide 7). Demuestra rápido que tu proyecto está a la vanguardia usando IoT y ESP32.
+
+Arquitectura del Sistema / Diagrama a Bloques (3 min): (Slide 8). Esta es la diapositiva más importante. Usa el NUEVO diagrama a bloques que te di (donde se ve la Fase 1 en ESP32 y la Fase 2 en Python/MATLAB). Explica aquí cómo el hardware solo captura y multiplica por la matriz llave (Muestreo Compresivo) para ahorrar batería, y cómo el servidor hace la reconstrucción pesada (OMP) y la limpieza (Wavelet).
+
+Teoría Clave (Entropía y Muestreo Compresivo) (2 min): (Fusión de slides 16 y 25/26). Explica brevemente que la Entropía define tu límite de compresión y que la matriz de Muestreo Compresivo actúa como tu técnica de cifrado simultáneo (seguridad y compresión al mismo tiempo).
+
+Resultados de Pruebas (3 min): (¡ESTA DIAPOSITIVA FALTA EN TU PPT ACTUAL Y DEBES AGREGARLA!) Agrega las gráficas que logramos en MATLAB (la original, la limpia, y la comparativa superpuesta). Muestra orgullosamente tus números: PRD de 0.73%, Entropía de ~4 bits y tu tasa de compresión. Esto es la prueba de que tu sistema funciona.
+
+Conclusiones y Referencias (1 min): Resume cómo lograste un balance entre seguridad, compresión y calidad clínica. Deja la diapositiva de referencias de fondo al terminar.
+
+Texto sugerido para decir en la presentación (Guion rápido):
+
+No leas las diapositivas. Cuando pongas el Diagrama a Bloques, di: "La innovación de nuestro sistema radica en separar el trabajo. El ESP32 no hace cálculos pesados, solo captura el ECG, lo multiplica por una matriz aleatoria que sirve como llave de cifrado y lo envía. Así ahorramos batería. El servidor web hace todo el trabajo de reconstrucción usando el algoritmo OMP y limpiando el ruido con Wavelet db4."
+
+Let's formulate this purely in Spanish text.Entendido. Una disculpa por la respuesta anterior. Aquí tienes la estructura exacta, solo en texto, de cómo debes organizar tus diapositivas, qué decir, qué quitar y cómo ajustar todo para una presentación exitosa de 15 minutos.
+
+Para presentar en 15 minutos, debes calcular un máximo de 10 a 12 diapositivas (aprox. 1.5 minutos por diapositiva). Tu presentación actual tiene casi 30; eso es demasiado y te obligaría a correr.
+
+Aquí está el plan de acción:
+
+1. Lo que debes QUITAR (o mover a diapositivas de "Anexos" al final)
+Tus asesores son ingenieros/médicos, no necesitas darles una clase de teoría básica. Si dejas esto, te quedarás sin tiempo para mostrar tu trabajo.
+
+Quita las diapositivas 12 a 15: (¿Qué es un ECG?, Funcionamiento, Frecuencia de muestreo, Histograma). Asume que el jurado ya lo sabe.
+
+Quita las diapositivas 17 a 24: (Bits en serie, RLE, Delta, Huffman teórico, Base64, JSON). Es demasiada "paja" teórica. Solo mencionarás verbalmente que usas estas técnicas.
+
+Quita las diapositivas 9, 28 y 29: (Íconos de VirtualBox, código de Wi-Fi, optimización del ESP32). Son detalles técnicos menores que aburren en una presentación ejecutiva.
+
+2. El ORDEN IDEAL y qué AGREGAR (Estructura de 15 minutos)
+Diapositiva 1: Portada (1 minuto)
+
+Texto a cambiar: Actualiza el título a algo más preciso, por ejemplo: "Diseño de un sistema híbrido de compresión y cifrado de datos de ECG utilizando Muestreo Compresivo y Wavelets".
+
+Diapositiva 2: Planteamiento y Justificación (2 minutos)
+
+Qué hacer: Fusiona tus diapositivas 2, 3 y 4 en una sola.
+
+Qué decir: "El problema actual es que transmitir datos de ECG de forma remota consume mucha batería y ancho de banda, además de ser vulnerable a hackeos. Nuestro proyecto justifica la creación de un sistema que comprime la señal para ahorrar energía y la cifra para proteger la identidad del paciente, permitiendo telemedicina continua y segura".
+
+Diapositiva 3: Objetivos (2 minutos)
+
+Qué hacer: Fusiona la 5 y la 6. Usa viñetas cortas.
+
+Qué decir: Menciona que el objetivo general es crear el sistema portátil, y los específicos son 4: 1) Captura eficiente, 2) Compresión/Cifrado simultáneo con Muestreo Compresivo, 3) Reconstrucción en servidor, y 4) Limpieza con Wavelets.
+
+Diapositiva 4: Estado del Arte / Línea del tiempo (1 minuto)
+
+Qué hacer: Usa tu diapositiva 7.
+
+Qué decir: Ve rápido. "Como vemos en la línea del tiempo, el uso del ESP32 en IoT médico es la tendencia actual (2021-2025), y nosotros estamos llevando esto al siguiente nivel integrando seguridad algorítmica."
+
+Diapositiva 5: El Cerebro del Proyecto: Diagrama a Bloques (4 minutos) -> LA MÁS IMPORTANTE
+
+Qué hacer: Reemplaza tu diagrama viejo por el nuevo diagrama asimétrico que te describí antes (Fase 1 ESP32 y Fase 2 Servidor).
+
+Qué decir (Tu momento de brillar): "La innovación de nuestro diseño es la arquitectura asimétrica. El hardware (ESP32) no tiene memoria para filtrar, así que solo hace una cosa: captura el latido y lo multiplica por una matriz aleatoria. Esta matriz actúa como una llave de cifrado y, al mismo tiempo, comprime los datos (Muestreo Compresivo). Luego, en la Fase 2, nuestro servidor en Python/MATLAB recibe estos datos cifrados, los reconstruye mediante el algoritmo OMP y finalmente limpia el ruido usando la Transformada Wavelet (db4)."
+
+Diapositiva 6: Fundamento Matemático (2 minutos)
+
+Qué hacer: Fusiona conceptos de las diapositivas 16, 25 y 26.
+
+Qué decir: No pongas fórmulas largas. Solo explica verbalmente que la Entropía les sirvió para calcular el límite de qué tanto podían comprimir el latido, y que el cifrado es robusto porque sin la matriz "Llave", los datos interceptados en el Wi-Fi solo se ven como ruido estático.
+
+Diapositiva 7: RESULTADOS DE SIMULACIÓN (2 minutos) -> DEBES AGREGARLA
+
+Qué hacer: Esta diapositiva te falta. Pon aquí las gráficas de MATLAB (la señal azul con ruido, la roja superpuesta limpia).
+
+Qué decir: "Para validar nuestra arquitectura, corrimos los algoritmos con datos reales. Como pueden ver en la gráfica, la señal procesada (roja) sigue perfectamente al latido original, eliminando únicamente el ruido. Logramos una Entropía de ~4 bits y un Error de Reconstrucción (PRD) de solo 0.73%. Esto garantiza que la compresión es de grado clínico médico."
+
+Diapositiva 8: Conclusiones y Futuro (1 minuto)
+
+Qué hacer: Viñetas muy cortas.
+
+Qué decir: "Concluimos que el Muestreo Compresivo integrado al ESP32 es viable. El siguiente paso en los próximos dos meses es terminar la programación en C++ del microcontrolador y el frontend web para visualizar esto en tiempo real."
+
+Diapositiva 9: Referencias (Dejar de fondo)
+
+Solo ponla mientras agradeces y respondes preguntas.
+
+Resumen del Consejo:
+Tus asesores quieren ver tu solución, no quieren leer un diccionario de conceptos médicos o de programación. Enfoca 10 de tus 15 minutos en el Diagrama a Bloques y en los Resultados de las Gráficas (PRD). Ese es el verdadero peso de tu tesina.

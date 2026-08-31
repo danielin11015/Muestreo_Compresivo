@@ -1,0 +1,92 @@
+% ============================================
+%   1. CARGAR ECG
+% ============================================
+ruta = 'C:\Users\VICTUS 15\OneDrive\Escritorio\ECG\ascii_ecg_data.txt';   
+ecg_raw = load(ruta);                                                   
+ecg = double(ecg_raw(:));                                              % Se convierte a double y lo dejo como vector columna
+
+fprintf('Rango original: [%.4f  %.4f]\n', min(ecg), max(ecg));         % Imprimimos el rango original para ver en qué valores viene la señal
+
+%============================================
+%   2. FILTRADO WAVELET (solo atenuar ruido)
+% ===========================================
+wavelet_nombre = 'db4';                                                % Seleccionamos la wavelet Daubechies 4, típica para ECG
+
+[A, D] = dwt(ecg, wavelet_nombre);                                     % Se hace la descomposición wavelet nivel 1 (A = la forma general de la
+                                                                       % señal, D = ruido)
+
+umbral = 0.04 * max(abs(D));                                           % Se define un umbral para decidir que tan fuerte debe estar un detalle para dejarlo
+D_filtrado = wthresh(D, 's', umbral);                                  % Aplicamos umbralización suave para reducir ruido sin deformar la señal
+
+ecg_filtrado = idwt(A, D_filtrado, wavelet_nombre);                    % Reconstruimos la señal filtrada con la transformada inversa
+ecg_filtrado = ecg_filtrado(1:length(ecg));                            % Ajustamos la longitud para que coincida con la señal original
+
+% ============================================
+%   3. NORMALIZACIÓN 0–1
+% =============================================
+ecg_norm = (ecg_filtrado - min(ecg_filtrado)) / ...                    % Normalizamos la señal filtrada al rango 0–1
+           (max(ecg_filtrado) - min(ecg_filtrado));
+
+% ============================================
+%   4. CUANTIZACIÓN (IMPORTANTE PARA COMPRIMIR)
+% =============================================
+Nniveles = 64;                                                         % Definimos 64 niveles de cuantización (hay mejor balance calidad/compresión)
+ecg_disc = round(ecg_norm * (Nniveles - 1));                           % Redondeamos para obtener valores discretos entre 0 y 63
+
+[valores_unicos, ~, idx] = unique(ecg_disc);                           % Obtenemos los valores únicos y el índice de cada muestra
+counts = accumarray(idx, 1);                                           % Contamos cuántas veces aparece cada valor
+p = counts / sum(counts);                                              % Calculamos las probabilidades reales de cada símbolo
+
+% ============================================
+%   5. ENTROPÍA DE SHANNON
+% =============================================
+p_nozero = p(p > 0);                                                   % Eliminamos las probabilidades cero para evitar problemas numéricos
+H = -sum(p_nozero .* log2(p_nozero));                                  % Calculamos la entropía de Shannon en bits/muestra
+
+% ============================================
+%   6. HUFFMAN
+% =============================================
+dict = huffmandict(valores_unicos, p);                                 % Construimos el diccionario de Huffman con las probabilidades
+ecg_comprimido = huffmanenco(ecg_disc, dict);                          % Codificamos la señal cuantizada usando Huffman
+
+% ============================================
+%   7. DECODIFICACIÓN PARA VALIDAR
+% =============================================
+ecg_rec_disc = huffmandeco(ecg_comprimido, dict);                      % Decodificamos para verificar que la compresión es correcta
+ecg_rec_norm = double(ecg_rec_disc) / (Nniveles - 1);                  % La señal se reconstruye a la escala 0–1
+
+% ============================================
+%   8. PRD (Error de reconstrucción)
+% =============================================
+error_prd = sqrt(sum((ecg_norm - ecg_rec_norm).^2) / ...               % Calculamos el PRD para medir qué tan bien se reconstruyó la señal
+                 sum(ecg_norm.^2)) * 100;
+
+% ============================================
+%   9. RESULTADOS
+% =============================================
+fprintf('\n--- RESULTADOS ---\n');                                     % Imprimos los resultados finales del análisis
+fprintf('Niveles de cuantización: %d\n', Nniveles);
+fprintf('Entropía de Shannon: %.4f bits/muestra\n', H);
+fprintf('PRD (error): %.4f%%\n', error_prd);
+fprintf('Tamaño original (muestras): %d\n', length(ecg_disc));
+fprintf('Tamaño comprimido (bits): %d\n', length(ecg_comprimido));
+
+% ============================================
+%   10. GRAFICAS
+% =============================================
+figure;                                                                    
+subplot(3,1,1);
+plot(ecg, 'b');                                                          
+title('ECG Original');
+grid on;
+
+subplot(3,1,2);
+plot(ecg_filtrado, 'm');                                                  
+title('ECG Filtrado con Wavelet');
+grid on;
+
+subplot(3,1,3);
+plot(ecg_norm, 'r');                                                      
+title('ECG Normalizado');
+grid on;
+
