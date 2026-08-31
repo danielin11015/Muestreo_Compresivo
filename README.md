@@ -2,7 +2,7 @@
 
 NeuroZip (MCIA) es un sistema híbrido de telemetría médica diseñado para la compresión y el cifrado simultáneo de señales de electrocardiograma (ECG) en entornos de Internet de las Cosas (IoT). El proyecto resuelve el alto consumo de ancho de banda y batería en microcontroladores mediante el uso del Muestreo Compresivo (Compressive Sensing - CS), trasladando la carga computacional pesada del hardware hacia un servidor central.
 
-## 🚀 Características Principales
+##  Características Principales
 
 * **Compresión Simultánea (CS):** Utiliza una matriz de medición aleatoria ($\Phi$) para reducir tramas de 256 muestras (N=256) directamente en el hardware, logrando ahorros de transmisión Wi-Fi de hasta el 60.9%.
 
@@ -20,7 +20,7 @@ NeuroZip (MCIA) es un sistema híbrido de telemetría médica diseñado para la 
 
 
 
-## 🧠 Arquitectura del Sistema
+##  Arquitectura del Sistema
 
 El flujo de datos asimétrico se divide en dos fases operativas para maximizar la eficiencia:
 
@@ -49,7 +49,7 @@ El flujo de datos asimétrico se divide en dos fases operativas para maximizar l
 
 
 
-## 🛠️ Tecnologías Utilizadas
+##  Tecnologías Utilizadas
 
 * **Software Central:** Python 3.x, `numpy` (cálculos matriciales y DCT), `torch` (Autoencoder), `customtkinter` (interfaz UI), `matplotlib` (validación gráfica de grado clínico).
 
@@ -61,7 +61,7 @@ El flujo de datos asimétrico se divide en dos fases operativas para maximizar l
 
 
 
-## 📊 Métricas de Validación Clínica
+## Métricas de Validación Clínica
 
 El sistema garantiza una calidad diagnóstica validada matemáticamente mediante las siguientes métricas, integradas en la interfaz de usuario:
 
@@ -75,7 +75,7 @@ El sistema garantiza una calidad diagnóstica validada matemáticamente mediante
 
 
 
-## ⚙️ Instalación y Uso
+##  Instalación y Uso
 
 1. Instale las dependencias necesarias ejecutando en su terminal: `pip install numpy torch customtkinter matplotlib scipy`.
 
